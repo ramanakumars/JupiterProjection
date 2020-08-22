@@ -1,18 +1,8 @@
 import numpy as np
 import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
 import spiceypy, glob
-
-KERNEL_DATAFOLDER = '/home/local/Isis/data/juno/kernels/'
-pcks  = sorted(glob.glob(KERNEL_DATAFOLDER+"pck/pck*.tpc"))
-spks  = sorted(glob.glob(KERNEL_DATAFOLDER+"spk/jup*.bsp"))
-lsks  = sorted(glob.glob(KERNEL_DATAFOLDER+"lsk/naif*.tls"))
-
-kernels = [pcks[-1], spks[-1], lsks[-1]]
-for kernel in kernels:
-    spiceypy.furnsh(kernel)
 
 c_light = 3.e8 ## light speed in m/s
 
@@ -86,19 +76,19 @@ def get_vec_from_image(img, et):
     halfnx = int(nx/2)
     halfny = int(ny/2)
 
-    ''' position of jupiter in J2000 ref frame '''
+    ## position of jupiter in J2000 ref frame 
     jup_pos_spice, lt = spiceypy.spkpos("JUPITER", et, "J2000", "CN+S", "EARTH")
     jup_pos_spice = jup_pos_spice/np.linalg.norm(jup_pos_spice)
 
-    ''' get the distance to jupiter '''
+    ## get the distance to jupiter 
     dist = lt*c_light
     
-    ''' get the coordinate directions in the camera frame '''
+    ## get the coordinate directions in the camera frame 
     jup2j2000   = spiceypy.pxform("IAU_JUPITER", "J2000", et)
     npole_j2000 = np.matmul(jup2j2000, np.array([0., 0., 1.]))
     ivec_j2000  = np.cross(npole_j2000, -jup_pos_spice)
 
-    ''' fit an ellipse to the image and find the center '''
+    ## fit an ellipse to the image and find the center 
     mask_img = img[:,:,0].copy()
     mask_img[img[:,:,0] > 0.05] = 1.
     mask_img[img[:,:,0] < 0.05] = 0.
@@ -113,7 +103,7 @@ def get_vec_from_image(img, et):
         that Jupiter is closest to the center '''
     pathi = find_best_path(paths, halfnx, halfny)
 
-    ''' change the pathi if it detects some other contour '''
+    ## change the pathi if it detects some other contour 
     jupcont = paths[pathi].vertices
 
     axtest.cla()
@@ -121,14 +111,14 @@ def get_vec_from_image(img, et):
 
     axtest.plot(jupcont[:,0], jupcont[:,1], 'g-')
 
-    figtest.savefig('ellipse.png')
+    plt.show()
 
-    ''' fit the ellipse and get the fit parameters '''
+    ## fit the ellipse and get the fit parameters 
     x0, y0, a, b, alpha = fit_ellipse(jupcont)
 
     _, radii  = spiceypy.bodvrd("JUPITER", "RADII", 3)
 
-    ''' assume a linear scale '''
+    ## assume a linear scale 
     xscale = 1000.*radii[0]/a
     yscale = 1000.*radii[2]/b
 
@@ -198,16 +188,21 @@ def plot_map(lon, lat, img, pixres=0.1):
     lats = np.delete(lat_f, mask)
     lons = np.delete(lon_f, mask)
 
-    ''' convert to east positive '''
+    ## convert to east positive 
     lons = 360. - lons
 
-    IMG  = np.zeros((gridlat.size, gridlon.size, 3))
+    IMG  = np.zeros((gridlat.size, gridlon.size, 3), dtype=np.double)
 
     colors = ['R', 'G', 'B']
 
-    for color, imgi in enumerate([Rimg, Gimg, Bimg]):
+    for color, img in enumerate([Rimg, Gimg, Bimg]):
         print("Interpolating %s"%(colors[color]))
-        IMG[:,:,color] = griddata((lons, lats), imgi, (LON, LAT), method='cubic').T
-
-    plt.imsave("map.png", IMG, origin='lower')
+        IMGi = griddata((lons, lats), img, (LON, LAT), method='cubic').T
+    
+        IMGi[np.isnan(IMGi)] = 0.
+        IMGi[IMGi < 0.] = 0.
+        
+        IMG[:,:,color] = IMGi
+    
+    return IMG
 
