@@ -7,6 +7,7 @@ import spiceypy, glob, re, os
 from util import *
 from astropy.io import fits
 from astropy import units as u
+from astropy.visualization import simple_norm
 from astropy.coordinates import SkyCoord
 import time
 
@@ -634,11 +635,14 @@ class Projector():
 
         fig, ax = plt.subplots(1, 1, figsize=(10,8))
 
-        img = ax.imshow(self.img.min(axis=2), cmap='gray')
+        try:
+            img = ax.imshow(self.img.min(axis=2), cmap='gray')
+        except IndexError:
+            img = ax.imshow(self.img, cmap='gray')
 
         gammaslider = widgets.FloatSlider(\
                         value=1., \
-                        min=0.1, max=1., step=0.01)
+                        min=0.1, max=1.2, step=0.01)
 
         update_img = lambda gamma: \
             self.update_image(ax, img, gamma)
@@ -682,12 +686,11 @@ class Projector():
             Bg = np.clip(np.power(B, gamma), 0, 1)
            
             img_gamma = np.min([Rg, Gg, Bg], axis=0)
+            img.set_data(img_gamma)
         except IndexError:
+            img.norm = simple_norm(self.img, 'sqrt')
 
-            img_gamma = np.clip(np.power(self.img, gamma), 0, 10)
 
-
-        img.set_data(img_gamma)
 
 
     def update_ellipse(self, limb, meridian, SP, NP, \
