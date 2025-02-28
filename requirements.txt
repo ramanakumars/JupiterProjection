@@ -1,0 +1,10 @@
+astropy==6.1.2
+beautifulsoup4==4.13.3
+numpy==2.2.3
+Requests==2.32.3
+scipy==1.15.2
+Shapely==2.0.7
+scikit_image
+Cartopy==0.24.1
+spiceypy==6.0.0
+tqdm==4.67.0
